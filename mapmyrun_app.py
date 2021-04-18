@@ -20,7 +20,7 @@ import altair as alt
 __author__ = "Terry Dolan"
 __copyright__ = "Terry Dolan"
 __license__ = "MIT"
-__email__ = "terrydolan1892@gmail.com"
+__email__ = "terry8dolan@gmail.com"
 __status__ = "Beta"
 __version__ = "0.1.0"
 __updated__ = "April 2021"
