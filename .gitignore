@@ -1,0 +1,33 @@
+# non-project files to ignore
+*.bat
+*.ipynb
+*.jpg
+*.log
+*.p
+*.pdf
+*.pptx
+*.png
+*.pptx
+*.pyc
+*.tmp
+*.txt
+!requirements.txt
+*.xlsx
+tmp*.*
+*.old*
+*~*
+*.sav*
+Thumbs.db
+
+# jupyter notebook and checkpoint files
+.ipynb_checkpoints/
+
+# archive and tmp folder files
+archive/
+tmp*/
+snapshot*/
+
+# excluded data files
+data/tmp*.csv
+data/old*.csv
+data/.ipynb_checkpoints
