@@ -1,0 +1,14 @@
+# Simple Kubernetes Service to deploy the mmr app
+apiVersion: v1
+kind: Service
+metadata:
+  name: ps-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 80
+    targetPort: 8501
+    nodePort: 31111
+    protocol: TCP
+  selector:
+    app: mmr

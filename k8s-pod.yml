@@ -1,0 +1,13 @@
+# Simple Kubernetes Pod to deploy the mmr app
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mmr-pod
+  labels:
+    app: mmr
+spec:
+  containers:
+    - name: mmr-ctr
+      image: terrydolan/mmr:0.1
+      ports:
+        - containerPort: 8501
