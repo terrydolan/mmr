@@ -12,6 +12,7 @@
 *.tmp
 *.txt
 !requirements.txt
+!runtime.txt
 *.xlsx
 tmp*.*
 *.old*
