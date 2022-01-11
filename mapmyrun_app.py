@@ -9,7 +9,8 @@ To run:
     $streamlit run mapmyrun_app.py
 
 History
-v0.1.0 - Apr 2021, First version
+v0.1.0 - Apr 2021, Initial version
+v0.2.0 - Jan 2021, Updated to latest version of libraries
 """
 
 import base64
@@ -22,8 +23,8 @@ __copyright__ = "Terry Dolan"
 __license__ = "MIT"
 __email__ = "terry8dolan@gmail.com"
 __status__ = "Beta"
-__version__ = "0.1.0"
-__updated__ = "April 2021"
+__version__ = "0.2.0"
+__updated__ = "January 2022"
 
 # explicitly register matplotlib converters to avoid warning
 # Ref: https://stackoverflow.com/questions/47404653/pandas-0-21-0-timestamp-compatibility-issue-with-matplotlib
@@ -36,7 +37,7 @@ st.set_page_config(page_title="mapmyrun_app",
                    initial_sidebar_state="collapsed")
 
 st.title("Mapmyrun Data Analysis App")
-with st.beta_expander("Introduction", expanded=True):
+with st.expander("Introduction", expanded=True):
     st.markdown("""
 Use the app to explore your *[mapmyrun](https://www.mapmyrun.com/)* run data. 
 **Configure the app** using the sidebar: load your own data and select the time 
@@ -524,7 +525,7 @@ elif sel_runner == RUN3_NAME:
     MAPMYRUN_CSV = RUN3_FILE
 elif sel_runner == 'Your Data':
     # load user's csv data file
-    with st.beta_expander("Load Your Data", expanded=True):
+    with st.expander("Load Your Data", expanded=True):
         st.subheader('Select your mapmyrun csv data file to load')
         uploaded_file = st.file_uploader("Choose a file", type='csv')
         if st.checkbox('Show how to download your mapmayrun workhout history \
@@ -600,7 +601,7 @@ view_friendly = {'Year': 'yearly', 'Month': 'monthly',
 st.markdown(f"Showing plots from *{sel_start_date_fn}* to "
             f"*{sel_end_date_fn}* with a *{view_friendly[sel_view]}* view...")
 
-with st.beta_expander("Plot Distance", expanded=True):
+with st.expander("Plot Distance", expanded=True):
     # plot the mapmyrun workout distance from dataframe
     fig_dist, df_dist = mmr_plot_dist(df_mmr, view=sel_view)
     st.write(fig_dist)
@@ -613,7 +614,7 @@ with st.beta_expander("Plot Distance", expanded=True):
                                                                  'distance'),
                                      unsafe_allow_html=True)
 
-with st.beta_expander("Plot Speed", expanded=True):
+with st.expander("Plot Speed", expanded=True):
     # plot the mapmyrun workout speed from dataframe
     fig_speed, df_speed = mmr_plot_speed(df_mmr)
     st.write(fig_speed)
@@ -628,7 +629,7 @@ with st.beta_expander("Plot Speed", expanded=True):
                                                                   'speed'),
                                       unsafe_allow_html=True)
 
-with st.beta_expander("Plot Pace", expanded=True):
+with st.expander("Plot Pace", expanded=True):
     # plot the mapmyrun workout pace from dataframe
     fig_pace, df_pace = mmr_plot_pace_bin(df_mmr)
     st.write(fig_pace)
@@ -646,12 +647,12 @@ with st.beta_expander("Plot Pace", expanded=True):
 # ==========================================================
 
 # show lifetime stats
-with st.beta_expander("Lifetime stats"):
+with st.expander("Lifetime stats"):
     # load lifetime stats into lts dict
     lts = mmr_lts(df_mmr)
 
     # split screen into columns and show the stats
-    col1, col2, col3, col4 = st.beta_columns(4)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.write("Total runs:")
         st.write("Average pace:")
@@ -694,6 +695,6 @@ with st.beta_expander("Lifetime stats"):
             st.write(f"{lts['last_10km_date']}")
 
 # Show info about the app
-with st.beta_expander("About the app"):
+with st.expander("About the app"):
     ABOUT_MD_STR = read_file_str('README.md')
     st.markdown(ABOUT_MD_STR)
