@@ -11,6 +11,7 @@ To run:
 History
 v0.1.0 - Apr 2021, Initial version
 v0.2.0 - Jan 2021, Updated to latest version of libraries
+v0.3.0 - Jun 2021, Updated to latest version of libraries
 """
 
 import base64
@@ -23,8 +24,8 @@ __copyright__ = "Terry Dolan"
 __license__ = "MIT"
 __email__ = "terry8dolan@gmail.com"
 __status__ = "Beta"
-__version__ = "0.2.0"
-__updated__ = "January 2022"
+__version__ = "0.3.0"
+__updated__ = "June 2022"
 
 # explicitly register matplotlib converters to avoid warning
 # Ref: https://stackoverflow.com/questions/47404653/pandas-0-21-0-timestamp-compatibility-issue-with-matplotlib
