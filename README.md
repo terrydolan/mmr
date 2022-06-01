@@ -1,4 +1,4 @@
-# mmr # mmr [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]
+# mmr [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]
 
 Use the app to explore your *[mapmyrun](https://www.mapmyrun.com/)* run data. 
 
