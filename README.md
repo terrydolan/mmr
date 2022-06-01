@@ -1,6 +1,8 @@
+# mmr # mmr [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)]
+
 Use the app to explore your *[mapmyrun](https://www.mapmyrun.com/)* run data. 
 
-**Configure the app**  
+## Configure the app
 Select one of the three example runner data files on the sidebar to see the 
 plots and play with the data filters and views.
 Or you can use *Your Data* file - follow the instructions on how to download
@@ -22,7 +24,7 @@ Note that the plots assume that the distance data is in km.
 If your data has distance in miles then the distance related values are
 automatically converted to km during the data load.
 
-**Data viz and stats**  
+## Data viz and stats
 The distance plot shows the runner's distance over time for the selected view.
 Hovver your mouse pointer over a bar to see the details.
 
@@ -41,14 +43,14 @@ For each of the plots you can view the data and download as a .csv file.
 The life-time stats section shows the runner's key stats e.g. total runs and 
 total distance.
 
-**Build information**  
-The app is built in *python* using *streamlit*, *altair*, *matplotlib* and
+## Build information
+The mmr app is built in *python* using *streamlit*, *altair*, *matplotlib* and
 *base64*.
 
-The app is deployed here: TBA.  
-Check out the source code repository here: TBA.
+The app is deployed [here](https://share.streamlit.io/terrydolan/mmr/main/mapmyrun_app.py).  
+Check out the source code repository [here](https://github.com/terrydolan/mmr).
 
-**To Do**  
+## To Do
 + Allow user to choose the distance units (miles or kilometres) to display and
 the speed categories in terms of those those units.
 Currently the distance units are set to km and the speed categories are fixed
