@@ -12,6 +12,9 @@ History
 v0.1.0 - Apr 2021, Initial version
 v0.2.0 - Jan 2021, Updated to latest version of libraries
 v0.3.0 - Jun 2021, Updated to latest version of libraries
+v0.4.0 - Feb 2024, Updated to latest version of libraries;
+         fixed bug in date conversion when reading csv; fixed Altair deprecation warnings
+         improved display of Workout_date
 """
 
 import base64
@@ -24,8 +27,8 @@ __copyright__ = "Terry Dolan"
 __license__ = "MIT"
 __email__ = "terry8dolan@gmail.com"
 __status__ = "Beta"
-__version__ = "0.3.0"
-__updated__ = "June 2022"
+__version__ = "0.4.0"
+__updated__ = "Feb 2024"
 
 # explicitly register matplotlib converters to avoid warning
 # Ref: https://stackoverflow.com/questions/47404653/pandas-0-21-0-timestamp-compatibility-issue-with-matplotlib
@@ -54,9 +57,11 @@ section name.
 #    Mapmyrun Application - UTILITY FUNCTIONS
 # ==============================================
 
+
 def mmr_distance_cat(distance):
     """Return the distance category in km for the given distance."""
 
+    dist_cat = None
     if distance < 5:
         dist_cat = 'Lessthan5km'
     elif 5 <= distance < 10:
@@ -66,7 +71,8 @@ def mmr_distance_cat(distance):
 
     return dist_cat
 
-@st.cache
+
+@st.cache_resource
 def mmr_read_data(file):
     """Read mapmyrun csv file and return running data in dataframe.
 
@@ -81,23 +87,23 @@ def mmr_read_data(file):
         Raises:
             Exception: if file cannot be parsed
     """
-
+    # print("DEBUG, in mmr_read_data()")
     # define multiplier to convert miles to kilometres
-    MI_TO_KM = 1.60934
+    mi_to_km = 1.60934
 
     try:
         print(f"\nreading mapmyrun data file: '{file}'")
-        df = pd.read_csv(file, parse_dates=['Date Submitted',
-                                            'Workout Date'])\
-                                              .sort_values('Workout Date')\
-                                              .reset_index(drop=True)
+        df = pd.read_csv(file, parse_dates=['Workout Date'],
+                         dayfirst=True, date_format='mixed')\
+            .sort_values('Workout Date').reset_index(drop=True)
+        # st.write("DEBUG, df.dtypes:", df.dtypes)
 
-        # determine distance units from column names
-        # will be either 'Distance (km)' or 'Distance (mi)'
-        col_dist = [col for col in df.columns if col.startswith('Distance')]
-        dist_units = col_dist[0][10:12] # km or mi
+        # determine distance units from column names, will be kilometres or miles
+        col_dist = [col for col in df.columns
+                    if col.startswith('Distance')]
+        dist_units = col_dist[0][10:12]  # km or mi
 
-        # rename columns to remove whitespace and units (etc)
+        # rename columns to remove whitespace and units (etc.)
         col_map = {'Workout Date': 'Workout_date',
                    'Activity Type': 'Activity_type',
                    'Distance (km)': 'Distance',
@@ -111,19 +117,18 @@ def mmr_read_data(file):
 
         # drop unwanted columns
         col_keep = col_map.values()
-        df = df.drop(columns=[col for col in df.columns
-                              if col not in col_keep])
+        df = df.drop(columns=[col for col in df.columns if col not in col_keep])
 
         # convert distance related values in dataframe to km
         # if distance units are mi
         is_units_converted = False
         if dist_units == 'mi':
-            df['Distance'] = df.Distance*MI_TO_KM
-            df['Pace_avg'] = df.Pace_avg/MI_TO_KM
-            df['Speed_avg'] = df.Speed_avg*MI_TO_KM
+            df['Distance'] = df.Distance*mi_to_km
+            df['Pace_avg'] = df.Pace_avg/mi_to_km
+            df['Speed_avg'] = df.Speed_avg*mi_to_km
             is_units_converted = True
             print('Distances in file converted from miles to kilometres')
-    except:
+    except Exception:
         error_msg = f"error parsing the file: '{file.name}', "\
                     f"check that this is a mapmyrun csv file"
         print(error_msg)
@@ -141,7 +146,8 @@ def mmr_read_data(file):
 
     return df, is_units_converted
 
-@st.cache
+
+@st.cache_resource
 def mmr_lts(df):
     """Return lifetime stats (lts) in dict for given mmr dataframe."""
 
@@ -154,17 +160,15 @@ def mmr_lts(df):
     lts_d['speed_avg'] = round(df.Speed_avg.mean(), 1)
 
     # calculate max distance per month stats
-    df_dist_pm = df[['Workout_date', 'Distance']]\
-                        .groupby(pd.Grouper(key='Workout_date',
-                                            freq='M')).sum()
+    df_dist_pm = (df[['Workout_date', 'Distance']]
+                  .groupby(pd.Grouper(key='Workout_date', freq='ME')).sum())
     df_dist_pm = df_dist_pm.sort_values('Distance', ascending=False)
     lts_d['mmr_run_dist_pm_max'] = round(df_dist_pm.iloc[0].values[0], 1)
     lts_d['mmr_run_dist_pm_max_date'] = df_dist_pm.index[0].strftime("%b %Y")
 
     # calculate max distance per week stats
-    df_dist_pw = df[['Workout_date', 'Distance']]\
-                        .groupby(pd.Grouper(key='Workout_date',
-                                            freq='W')).sum()
+    df_dist_pw = (df[['Workout_date', 'Distance']]
+                  .groupby(pd.Grouper(key='Workout_date', freq='W')).sum())
     df_dist_pw = df_dist_pw.sort_values('Distance', ascending=False)
     lts_d['mmr_run_dist_pw_max'] = round(df_dist_pw.iloc[0].values[0], 1)
     lts_d['mmr_run_dist_pw_max_date'] = df_dist_pw.index[0].strftime("%b %Y")
@@ -176,11 +180,11 @@ def mmr_lts(df):
     # calculate first and last 5 km date
     if lts_d['total_5km'] >= 1:
         lts_d['first_5km_date'] = df[df.Distance >= 5]\
-                                      .Workout_date.iloc[0]\
-                                      .strftime("%d %b %Y")
+            .Workout_date.iloc[0]\
+            .strftime("%d %b %Y")
         lts_d['last_5km_date'] = df[df.Distance >= 5]\
-                                     .Workout_date.\
-                                     iloc[-1].strftime("%d %b %Y")
+            .Workout_date.\
+            iloc[-1].strftime("%d %b %Y")
     else:
         lts_d['first_5km_date'] = None
         lts_d['last_5km_date'] = None
@@ -188,18 +192,19 @@ def mmr_lts(df):
     # calculate first 10k date
     if lts_d['total_10km'] >= 1:
         lts_d['first_10km_date'] = df[df.Distance >= 10]\
-                                       .Workout_date.iloc[0]\
-                                       .strftime("%d %b %Y")
+            .Workout_date.iloc[0]\
+            .strftime("%d %b %Y")
         lts_d['last_10km_date'] = df[df.Distance >= 10]\
-                                       .Workout_date.iloc[-1]\
-                                       .strftime("%d %b %Y")
+            .Workout_date.iloc[-1]\
+            .strftime("%d %b %Y")
     else:
         lts_d['first_10km_date'] = None
         lts_d['last_10km_date'] = None
 
     return lts_d
 
-@st.cache
+
+@st.cache_resource
 def mmr_df_filter(df, years, start_date, end_date):
     """Return dataframe filtered by given years, start_date and end_date.
 
@@ -211,7 +216,7 @@ def mmr_df_filter(df, years, start_date, end_date):
        start_date and end_dates are dates to refine chosen years (mandatory)
            e.g. start_date='2020-01-01' (date string format is '%Y-%m-%d')
            - if no value is given then min and max Workout_dates are used,
-             after years filter is applied
+             after applying years filter
 
        note: years, start_date and end_date are not defaulted to None to
              ensure that streamlit caching will work"""
@@ -237,6 +242,7 @@ def mmr_df_filter(df, years, start_date, end_date):
 
     return df
 
+
 def mmr_plot_dist(df, view='Month'):
     """Return the altair plot of Distance vs Workout_date for df and view.
 
@@ -259,33 +265,33 @@ def mmr_plot_dist(df, view='Month'):
     pd_agg_funcs_map = {'Distance': 'sum', 'Speed_avg': 'mean'}
 
     # define altair map, used to tailor Altair plot for each view
-    alt_map = {'Month': {'x_shorthand':'Workout_date', 'x_title':'Month',
+    alt_map = {'Month': {'x_shorthand': 'Workout_date', 'x_title': 'Month',
                          'tooltip_title': 'Run month',
                          'tooltip_date_format': '%b %Y',
                          'prop_title': 'Distance per month'
-                        },
-               'Year': {'x_shorthand':'Workout_date:O', 'x_title':'Year',
+                         },
+               'Year': {'x_shorthand': 'Workout_date:O', 'x_title': 'Year',
                         'tooltip_title': 'Run year',
                         'tooltip_date_format': '',
                         'prop_title': 'Distance per year'
-                       },
-               'Week': {'x_shorthand':'Workout_date', 'x_title':'Week Number',
+                        },
+               'Week': {'x_shorthand': 'Workout_date', 'x_title': 'Week Number',
                         'tooltip_title': 'Run week number',
                         'tooltip_date_format': '%V, %d %b %Y',
                         'prop_title': 'Distance per week'
-                       },
-               'Day': {'x_shorthand':'Workout_date', 'x_title':'Day',
+                        },
+               'Day': {'x_shorthand': 'Workout_date', 'x_title': 'Day',
                        'tooltip_title': 'Run date',
                        'tooltip_date_format': '%d %b %Y',
                        'prop_title': 'Distance per day'
-                      }
-              }
+                       }
+               }
 
     # define view to plot using input view and start and end dates
-    df_plot = df[sel_cols].groupby(pd.Grouper(key='Workout_date',
-                                              freq=pd_freq_map[view]))\
-                                        [['Distance', 'Speed_avg']]\
-                                        .agg(pd_agg_funcs_map).reset_index()
+    df_plot = df[sel_cols].groupby(
+        pd.Grouper(key='Workout_date',
+                   freq=pd_freq_map[view]))[['Distance', 'Speed_avg']]\
+        .agg(pd_agg_funcs_map).reset_index()
 
     # prepare dataframe for plotting
     df_plot = df_plot.fillna(0)
@@ -293,7 +299,7 @@ def mmr_plot_dist(df, view='Month'):
         df_plot['Workout_date'] = df_plot.Workout_date.dt.year
 
     # plot the figure with Altair
-    hover = alt.selection(type="single", empty='none', on='mouseover')
+    hover = alt.selection_point(empty=False, on='mouseover')
 
     fig = alt.Chart(df_plot).mark_bar(opacity=0.6).encode(
                 x=alt.X(shorthand=alt_map[view]['x_shorthand'],
@@ -311,7 +317,7 @@ def mmr_plot_dist(df, view='Month'):
                          alt.Tooltip(shorthand='Speed_avg',
                                      title='Run average speed in km/h',
                                      format='.2f')]
-                ).add_selection(
+                ).add_params(
                     hover
                 ).properties(
                     title=alt_map[view]['prop_title'], width=fig_width,
@@ -319,6 +325,7 @@ def mmr_plot_dist(df, view='Month'):
                 )
 
     return fig, df_plot
+
 
 def mmr_plot_speed(df):
     """Return a plot of run speed categories for given mmr dataframe.
@@ -360,7 +367,7 @@ def mmr_plot_speed(df):
 
     chart = {}
     for distcat in distcats_scope_sorted:
-        #print(f"generate chart for chart[{distcat}]")
+        # print(f"generate chart for chart[{distcat}]")
         chart[distcat] = alt.Chart(
                 df_plot[(df_plot.Distance_category == distcat)]
             ).mark_circle(
@@ -384,11 +391,12 @@ def mmr_plot_speed(df):
                 title=distcats_title_map[distcat],
                 width=fig_width/len(distcats_scope), height=fig_height
             )
-        chart[distcat] = chart[distcat] + chart[distcat]\
-                            .transform_regression('Workout_date',
-                                                  'Speed_avg')\
-                            .mark_line(color=distcats_col_map[distcat],
-                                       opacity=0.4, strokeWidth=3)
+        chart[distcat] = (chart[distcat] +
+                          chart.get(distcat).transform_regression(
+                              'Workout_date', 'Speed_avg'
+                          ).mark_line(
+                              color=distcats_col_map[distcat], opacity=0.4, strokeWidth=3)
+                          )
 
     charts = [chart[dc] for dc in distcats_scope_sorted]
     chart_final = alt.hconcat(*charts).resolve_scale(y='shared').properties(
@@ -396,6 +404,7 @@ def mmr_plot_speed(df):
         )
 
     return chart_final, df_plot
+
 
 def mmr_plot_pace_bin(df):
     """Return a plot of run pace bin categories for given mmr dataframe."""
@@ -413,14 +422,13 @@ def mmr_plot_pace_bin(df):
     df_plot = df[sel_cols]
 
     # plot the figure with Altair
-    chart = alt.Chart(df_plot
-        ).mark_bar(
-            width=bar_width,
-            opacity=bar_opacity
-        ).transform_bin(
+    chart = alt.Chart(df_plot)\
+        .mark_bar(width=bar_width,
+                  opacity=bar_opacity)\
+        .transform_bin(
             "binned_pace", field="Pace_avg",
-            bin=alt.Bin(nice=True, minstep=bin_minstep)
-        ).encode(
+            bin=alt.Bin(nice=True, minstep=bin_minstep))\
+        .encode(
             x=alt.X("binned_pace:Q", title="Average Run Pace (binned)",
                     axis=alt.Axis(format=".2f")),
             y=alt.Y("count():Q", title="Count of Runs",
@@ -434,18 +442,17 @@ def mmr_plot_pace_bin(df):
                      alt.Tooltip("binned_pace:Q",
                                  title="Average Pace (binned)",
                                  format=".2f"),
-                     alt.Tooltip("count()", title="Count of Runs")]
-        ).properties(
-            title="Count of Runs at Pace",
-            width=fig_width, height=fig_height
-        )
+                     alt.Tooltip("count()", title="Count of Runs")])\
+        .properties(title="Count of Runs at Pace",
+                    width=fig_width, height=fig_height)
 
     return chart, df_plot
+
 
 def mmr_csvhelp_str():
     """Return help on how to download a mapmymyrun .csv file.
 
-       Help is a string in markdown format.
+       Help is a string in Markdown format.
        Ref: https://support.mapmyfitness.com/hc/en-us/articles/200118594-Export-Workout-Data
     """
 
@@ -468,13 +475,15 @@ Source:
 """
     return csvhelp_str
 
-@st.cache
+
+@st.cache_resource
 def read_file_str(filename):
     """Read the file and return as a string."""
 
     with open(filename, "r") as f:
         file_str = f.read()
     return file_str
+
 
 # https://discuss.streamlit.io/t/how-to-download-file-in-streamlit/1806
 def get_download_link_df_to_csv(df, filename):
@@ -492,10 +501,12 @@ def get_download_link_df_to_csv(df, filename):
     csv = df.to_csv(index=False)
     # strings <-> bytes conversions
     b64 = base64.b64encode(csv.encode()).decode()
-    href = f'<a href="data:file/csv;base64,{b64}" download="{filename}.csv"'\
-           f'>Download data as csv file</a>'
+    href = (
+        f'<a href="data: file/csv; base64, {b64}" download="{filename}.csv"'
+        f'>Download data as csv file</a>')
 
     return href
+
 
 # =========================================================
 #    Mapmyrun Application - Sidebar area for user config
@@ -517,6 +528,7 @@ st.sidebar.subheader("Configure the app")
 sel_runner = st.sidebar.radio("Select runner:", ('Your Data',
                                                  RUN1_NAME, RUN2_NAME,
                                                  RUN3_NAME), index=1)
+# st.write("DEBUG, selected runner:", sel_runner)
 uploaded_file = None
 if sel_runner == RUN1_NAME:
     MAPMYRUN_CSV = RUN1_FILE
@@ -567,15 +579,19 @@ workout_dates_first = workout_dates.iloc[0]
 workout_dates_last = workout_dates.iloc[-1]
 
 # refine dates to plot (optional)
-sel_dates = st.sidebar.date_input('Refine the selected years with a date '
-                                  'range:',
-                                  [workout_dates_first, workout_dates_last],
-                                  min_value=workout_dates_first,
-                                  max_value=workout_dates_last)
-sel_start_date = sel_dates[0]
-sel_end_date = sel_dates[1]
+try:
+    sel_dates = st.sidebar.date_input('Refine the selected years with a date '
+                                      'range:',
+                                      [workout_dates_first, workout_dates_last],
+                                      min_value=workout_dates_first,
+                                      max_value=workout_dates_last)
+    sel_start_date = sel_dates[0]
+    sel_end_date = sel_dates[1]
+except IndexError:
+    st.error('Please select a valid range')
+    st.stop()
 
-# define start_date anbd end_date friendly name
+# define start_date and end_date friendly name
 sel_start_date_fn = sel_dates[0].strftime('%d %b %Y')
 sel_end_date_fn = sel_dates[1].strftime('%d %b %Y')
 
@@ -609,11 +625,14 @@ with st.expander("Plot Distance", expanded=True):
     # give option of displaying and downloading dataframe
     dist_df_placeholder = st.empty()
     dist_dl_placeholder = st.empty()
+
     if st.checkbox('Show Distance data', value=False):
+        df_dist = df_dist.copy()
+        df_dist.Workout_date = df_dist.Workout_date.dt.date
         dist_df_placeholder.dataframe(df_dist)
-        dist_dl_placeholder.markdown(get_download_link_df_to_csv(df_dist,
-                                                                 'distance'),
-                                     unsafe_allow_html=True)
+        dist_dl_placeholder.markdown(
+            get_download_link_df_to_csv(df_dist, 'distance'),
+            unsafe_allow_html=True)
 
 with st.expander("Plot Speed", expanded=True):
     # plot the mapmyrun workout speed from dataframe
@@ -623,12 +642,14 @@ with st.expander("Plot Speed", expanded=True):
     speed_df_placeholder = st.empty()
     speed_dl_placeholder = st.empty()
     if st.checkbox('Show Speed data', value=False):
+        df_speed = df_speed.copy()
+        df_speed.Workout_date = df_speed.Workout_date.dt.date
         # select df_speed columns for display
         df_speed = df_speed[['Workout_date', 'Speed_avg', 'Distance_category']]
         speed_df_placeholder.dataframe(df_speed)
-        speed_dl_placeholder.markdown(get_download_link_df_to_csv(df_speed,
-                                                                  'speed'),
-                                      unsafe_allow_html=True)
+        speed_dl_placeholder.markdown(
+            get_download_link_df_to_csv(df_speed, 'speed'),
+            unsafe_allow_html=True)
 
 with st.expander("Plot Pace", expanded=True):
     # plot the mapmyrun workout pace from dataframe
@@ -638,10 +659,12 @@ with st.expander("Plot Pace", expanded=True):
     pace_df_placeholder = st.empty()
     pace_dl_placeholder = st.empty()
     if st.checkbox('Show Plot data', value=False):
+        df_pace = df_pace.copy()
+        df_pace.Workout_date = df_pace.Workout_date.dt.date
         pace_df_placeholder.dataframe(df_pace)
-        pace_dl_placeholder.markdown(get_download_link_df_to_csv(df_pace,
-                                                                 'pace'),
-                                     unsafe_allow_html=True)
+        pace_dl_placeholder.markdown(
+            get_download_link_df_to_csv(df_pace, 'pace'),
+            unsafe_allow_html=True)
 
 # ==========================================================
 #    Mapmyrun Application - Main area, supplementary info
